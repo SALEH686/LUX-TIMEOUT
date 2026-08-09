@@ -1,0 +1,84 @@
+const { EmbedBuilder } = require("discord.js");
+const fs = require("fs");
+
+const welcomeFile = "./welcome.json";
+
+function loadWelcome() {
+  try {
+    if (!fs.existsSync(welcomeFile)) {
+      fs.writeFileSync(welcomeFile, "{}");
+      return {};
+    }
+
+    return JSON.parse(
+      fs.readFileSync(welcomeFile, "utf8")
+    );
+
+  } catch (error) {
+    console.error(
+      "❌ Failed to load welcome settings:",
+      error
+    );
+    return {};
+  }
+}
+
+module.exports = (client) => {
+
+  client.on("guildMemberAdd", async member => {
+
+    try {
+
+      const welcomeChannels =
+        loadWelcome();
+
+      const channelId =
+        welcomeChannels[member.guild.id];
+
+      if (!channelId) {
+        return;
+      }
+
+      const channel =
+        member.guild.channels.cache.get(
+          channelId
+        );
+
+      if (
+        !channel ||
+        !channel.isTextBased()
+      ) {
+        return;
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle("👋 عضو جديد!")
+        .setDescription(
+          `أهلًا وسهلًا ${member} في **${member.guild.name}** 🎉\n\n` +
+          `نتمنى لك وقتًا ممتعًا معنا.`
+        )
+        .setThumbnail(
+          member.user.displayAvatarURL({
+            dynamic: true,
+            size: 256
+          })
+        )
+        .setTimestamp();
+
+      await channel.send({
+        content: `${member}`,
+        embeds: [embed]
+      });
+
+    } catch (error) {
+
+      console.error(
+        "❌ WELCOME ERROR:",
+        error
+      );
+
+    }
+
+  });
+
+};
