@@ -1,5 +1,12 @@
 {
   "name": "lux-timeout",
   "version": "1.0.0",
-  "main": "index.js"
+  "description": "LUX TIMEOUT Discord Bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.21.0"
+  }
 }
