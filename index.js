@@ -7,7 +7,8 @@ const {
   Routes,
   SlashCommandBuilder,
   PermissionFlagsBits,
-  EmbedBuilder
+  EmbedBuilder,
+  ChannelType
 } = require("discord.js");
 
 const client = new Client({
@@ -27,39 +28,71 @@ if (!CLIENT_ID) {
   process.exit(1);
 }
 
-// ==================== WARNINGS ====================
+// ==================== FILES ====================
 
 const warningsFile = "./warnings.json";
+const logsFile = "./logs.json";
 
 let warnings = {};
+let logsChannels = {};
 
-function loadWarnings() {
+function loadJSON(file) {
   try {
-    if (!fs.existsSync(warningsFile)) {
-      fs.writeFileSync(warningsFile, "{}");
+    if (!fs.existsSync(file)) {
+      fs.writeFileSync(file, "{}");
+      return {};
     }
 
-    const data = fs.readFileSync(warningsFile, "utf8");
+    const data = fs.readFileSync(file, "utf8");
 
-    warnings = data.trim() ? JSON.parse(data) : {};
+    if (!data.trim()) {
+      return {};
+    }
+
+    return JSON.parse(data);
   } catch (error) {
-    console.error("❌ Failed to load warnings:", error);
-    warnings = {};
+    console.error(`❌ Failed to load ${file}:`, error);
+    return {};
   }
 }
 
-function saveWarnings() {
+function saveJSON(file, data) {
   try {
     fs.writeFileSync(
-      warningsFile,
-      JSON.stringify(warnings, null, 2)
+      file,
+      JSON.stringify(data, null, 2)
     );
   } catch (error) {
-    console.error("❌ Failed to save warnings:", error);
+    console.error(`❌ Failed to save ${file}:`, error);
   }
 }
 
-loadWarnings();
+warnings = loadJSON(warningsFile);
+logsChannels = loadJSON(logsFile);
+
+// ==================== LOG FUNCTION ====================
+
+async function sendLog(guild, embed) {
+  try {
+    const channelId = logsChannels[guild.id];
+
+    if (!channelId) {
+      return;
+    }
+
+    const channel = guild.channels.cache.get(channelId);
+
+    if (!channel) {
+      return;
+    }
+
+    await channel.send({
+      embeds: [embed]
+    });
+  } catch (error) {
+    console.error("❌ Failed to send log:", error);
+  }
+}
 
 // ==================== TIMEOUT ====================
 
@@ -129,7 +162,7 @@ const warnCommand = new SlashCommandBuilder()
 
 const unwarnCommand = new SlashCommandBuilder()
   .setName("unwarn")
-  .setDescription("إزالة آخر تحذير من عضو")
+  .setDescription("إزالة آخر تحذير")
   .addUserOption(option =>
     option
       .setName("user")
@@ -155,6 +188,22 @@ const warningsCommand = new SlashCommandBuilder()
     PermissionFlagsBits.ModerateMembers
   );
 
+// ==================== SET LOGS ====================
+
+const setLogsCommand = new SlashCommandBuilder()
+  .setName("setlogs")
+  .setDescription("تحديد قناة Logs")
+  .addChannelOption(option =>
+    option
+      .setName("channel")
+      .setDescription("قناة استقبال Logs")
+      .addChannelTypes(ChannelType.GuildText)
+      .setRequired(true)
+  )
+  .setDefaultMemberPermissions(
+    PermissionFlagsBits.Administrator
+  );
+
 // ==================== COMMANDS ====================
 
 const commands = [
@@ -162,7 +211,8 @@ const commands = [
   removeTimeoutCommand,
   warnCommand,
   unwarnCommand,
-  warningsCommand
+  warningsCommand,
+  setLogsCommand
 ];
 
 // ==================== READY ====================
@@ -187,7 +237,7 @@ client.once("ready", async () => {
     );
 
     console.log(
-      "✅ All slash commands registered successfully!"
+      "✅ All slash commands registered!"
     );
   } catch (error) {
     console.error(
@@ -204,13 +254,44 @@ client.on("interactionCreate", async interaction => {
     return;
   }
 
+  // ==================== SET LOGS ====================
+
+  if (interaction.commandName === "setlogs") {
+    const channel =
+      interaction.options.getChannel("channel");
+
+    if (
+      !interaction.memberPermissions.has(
+        PermissionFlagsBits.Administrator
+      )
+    ) {
+      return interaction.reply({
+        content:
+          "❌ تحتاج صلاحية Administrator لاستخدام هذا الأمر.",
+        ephemeral: true
+      });
+    }
+
+    logsChannels[interaction.guild.id] = channel.id;
+
+    saveJSON(logsFile, logsChannels);
+
+    return interaction.reply({
+      content:
+        `✅ تم تحديد قناة الـLogs: <#${channel.id}>`
+    });
+  }
+
+  // ==================== PERMISSION ====================
+
   if (
     !interaction.memberPermissions.has(
       PermissionFlagsBits.ModerateMembers
     )
   ) {
     return interaction.reply({
-      content: "❌ ليس لديك صلاحية استخدام هذا الأمر.",
+      content:
+        "❌ ليس لديك صلاحية استخدام هذا الأمر.",
       ephemeral: true
     });
   }
@@ -220,7 +301,8 @@ client.on("interactionCreate", async interaction => {
 
   if (!target) {
     return interaction.reply({
-      content: "❌ لم أستطع العثور على العضو.",
+      content:
+        "❌ لم أستطع العثور على العضو.",
       ephemeral: true
     });
   }
@@ -233,7 +315,8 @@ client.on("interactionCreate", async interaction => {
 
     if (target.id === interaction.user.id) {
       return interaction.reply({
-        content: "❌ لا يمكنك إعطاء نفسك Timeout.",
+        content:
+          "❌ لا يمكنك إعطاء نفسك Timeout.",
         ephemeral: true
       });
     }
@@ -241,7 +324,7 @@ client.on("interactionCreate", async interaction => {
     if (!target.moderatable) {
       return interaction.reply({
         content:
-          "❌ لا أستطيع إعطاء هذا العضو Timeout. تأكد من ترتيب الرتب.",
+          "❌ لا أستطيع إعطاء هذا العضو Timeout.",
         ephemeral: true
       });
     }
@@ -250,6 +333,32 @@ client.on("interactionCreate", async interaction => {
       await target.timeout(
         duration * 60 * 1000,
         `Timeout بواسطة ${interaction.user.tag}`
+      );
+
+      const embed = new EmbedBuilder()
+        .setTitle("🔇 Timeout")
+        .addFields(
+          {
+            name: "👤 العضو",
+            value: `<@${target.id}>`,
+            inline: true
+          },
+          {
+            name: "👮 المشرف",
+            value: `<@${interaction.user.id}>`,
+            inline: true
+          },
+          {
+            name: "⏱️ المدة",
+            value: `${duration} دقيقة`,
+            inline: true
+          }
+        )
+        .setTimestamp();
+
+      await sendLog(
+        interaction.guild,
+        embed
       );
 
       return interaction.reply({
@@ -270,17 +379,40 @@ client.on("interactionCreate", async interaction => {
 
   // ==================== REMOVE TIMEOUT ====================
 
-  if (interaction.commandName === "removetimeout") {
+  if (
+    interaction.commandName ===
+    "removetimeout"
+  ) {
     try {
       await target.timeout(
         null,
         `إزالة Timeout بواسطة ${interaction.user.tag}`
       );
 
+      const embed = new EmbedBuilder()
+        .setTitle("🔊 إزالة Timeout")
+        .addFields(
+          {
+            name: "👤 العضو",
+            value: `<@${target.id}>`,
+            inline: true
+          },
+          {
+            name: "👮 المشرف",
+            value: `<@${interaction.user.id}>`,
+            inline: true
+          }
+        )
+        .setTimestamp();
+
+      await sendLog(
+        interaction.guild,
+        embed
+      );
+
       return interaction.reply({
         content:
-          `🔊 تم إزالة Timeout عن <@${target.id}> بنجاح.\n` +
-          `👮 بواسطة: <@${interaction.user.id}>`
+          `🔊 تم إزالة Timeout عن <@${target.id}> بنجاح.`
       });
     } catch (error) {
       console.error(error);
@@ -312,20 +444,51 @@ client.on("interactionCreate", async interaction => {
       date: new Date().toISOString()
     });
 
-    saveWarnings();
+    saveJSON(warningsFile, warnings);
+
+    const embed = new EmbedBuilder()
+      .setTitle("⚠️ Warn")
+      .addFields(
+        {
+          name: "👤 العضو",
+          value: `<@${target.id}>`,
+          inline: true
+        },
+        {
+          name: "👮 المشرف",
+          value: `<@${interaction.user.id}>`,
+          inline: true
+        },
+        {
+          name: "📝 السبب",
+          value: reason
+        },
+        {
+          name: "📊 عدد التحذيرات",
+          value: `${warnings[key].length}`,
+          inline: true
+        }
+      )
+      .setTimestamp();
+
+    await sendLog(
+      interaction.guild,
+      embed
+    );
 
     return interaction.reply({
       content:
         `⚠️ تم تحذير <@${target.id}> بنجاح.\n` +
         `📝 السبب: **${reason}**\n` +
-        `📊 عدد التحذيرات: **${warnings[key].length}**\n` +
-        `👮 بواسطة: <@${interaction.user.id}>`
+        `📊 عدد التحذيرات: **${warnings[key].length}**`
     });
   }
 
   // ==================== UNWARN ====================
 
-  if (interaction.commandName === "unwarn") {
+  if (
+    interaction.commandName === "unwarn"
+  ) {
     const key =
       `${interaction.guild.id}-${target.id}`;
 
@@ -341,7 +504,37 @@ client.on("interactionCreate", async interaction => {
 
     const removed = list.pop();
 
-    saveWarnings();
+    saveJSON(warningsFile, warnings);
+
+    const embed = new EmbedBuilder()
+      .setTitle("✅ إزالة Warn")
+      .addFields(
+        {
+          name: "👤 العضو",
+          value: `<@${target.id}>`,
+          inline: true
+        },
+        {
+          name: "👮 المشرف",
+          value: `<@${interaction.user.id}>`,
+          inline: true
+        },
+        {
+          name: "📝 التحذير المحذوف",
+          value: removed.reason
+        },
+        {
+          name: "📊 المتبقي",
+          value: `${list.length}`,
+          inline: true
+        }
+      )
+      .setTimestamp();
+
+    await sendLog(
+      interaction.guild,
+      embed
+    );
 
     return interaction.reply({
       content:
@@ -353,7 +546,9 @@ client.on("interactionCreate", async interaction => {
 
   // ==================== WARNINGS ====================
 
-  if (interaction.commandName === "warnings") {
+  if (
+    interaction.commandName === "warnings"
+  ) {
     const key =
       `${interaction.guild.id}-${target.id}`;
 
@@ -381,7 +576,7 @@ client.on("interactionCreate", async interaction => {
         value:
           `📝 السبب: ${warning.reason}\n` +
           `👮 المشرف: <@${warning.moderator}>\n` +
-          `📅 التاريخ: <t:${Math.floor(
+          `📅 <t:${Math.floor(
             new Date(warning.date).getTime() / 1000
           )}:F>`
       });
@@ -393,5 +588,7 @@ client.on("interactionCreate", async interaction => {
     });
   }
 });
+
+// ==================== LOGIN ====================
 
 client.login(TOKEN);
