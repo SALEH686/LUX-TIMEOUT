@@ -36,6 +36,8 @@ const logsFile = "./logs.json";
 let warnings = {};
 let logsChannels = {};
 
+// ==================== LOAD FILE ====================
+
 function loadJSON(file) {
   try {
     if (!fs.existsSync(file)) {
@@ -56,6 +58,8 @@ function loadJSON(file) {
   }
 }
 
+// ==================== SAVE FILE ====================
+
 function saveJSON(file, data) {
   try {
     fs.writeFileSync(
@@ -70,7 +74,7 @@ function saveJSON(file, data) {
 warnings = loadJSON(warningsFile);
 logsChannels = loadJSON(logsFile);
 
-// ==================== LOG FUNCTION ====================
+// ==================== SEND LOG ====================
 
 async function sendLog(guild, embed) {
   try {
@@ -84,7 +88,8 @@ async function sendLog(guild, embed) {
       return;
     }
 
-    const channel = guild.channels.cache.get(channelId);
+    const channel =
+      guild.channels.cache.get(channelId);
 
     if (!channel) {
       console.error("❌ Logs channel not found.");
@@ -92,19 +97,27 @@ async function sendLog(guild, embed) {
     }
 
     if (!channel.isTextBased()) {
-      console.error("❌ Logs channel is not text based.");
+      console.error(
+        "❌ Logs channel is not text based."
+      );
       return;
     }
 
     await channel.send({
       embeds: [embed]
     });
+
   } catch (error) {
-    console.error("❌ Failed to send log:", error);
+    console.error(
+      "❌ Failed to send log:",
+      error
+    );
   }
 }
 
-// ==================== TIMEOUT ====================
+// ==================================================
+// ==================== TIMEOUT =====================
+// ==================================================
 
 const timeoutCommand = new SlashCommandBuilder()
   .setName("timeout")
@@ -132,22 +145,27 @@ const timeoutCommand = new SlashCommandBuilder()
     PermissionFlagsBits.ModerateMembers
   );
 
-// ==================== REMOVE TIMEOUT ====================
+// ==================================================
+// ================= REMOVE TIMEOUT =================
+// ==================================================
 
-const removeTimeoutCommand = new SlashCommandBuilder()
-  .setName("removetimeout")
-  .setDescription("إزالة Timeout من عضو")
-  .addUserOption(option =>
-    option
-      .setName("user")
-      .setDescription("العضو")
-      .setRequired(true)
-  )
-  .setDefaultMemberPermissions(
-    PermissionFlagsBits.ModerateMembers
-  );
+const removeTimeoutCommand =
+  new SlashCommandBuilder()
+    .setName("removetimeout")
+    .setDescription("إزالة Timeout من عضو")
+    .addUserOption(option =>
+      option
+        .setName("user")
+        .setDescription("العضو")
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(
+      PermissionFlagsBits.ModerateMembers
+    );
 
-// ==================== WARN ====================
+// ==================================================
+// ====================== WARN ======================
+// ==================================================
 
 const warnCommand = new SlashCommandBuilder()
   .setName("warn")
@@ -168,7 +186,9 @@ const warnCommand = new SlashCommandBuilder()
     PermissionFlagsBits.ModerateMembers
   );
 
-// ==================== UNWARN ====================
+// ==================================================
+// ===================== UNWARN =====================
+// ==================================================
 
 const unwarnCommand = new SlashCommandBuilder()
   .setName("unwarn")
@@ -183,38 +203,71 @@ const unwarnCommand = new SlashCommandBuilder()
     PermissionFlagsBits.ModerateMembers
   );
 
+// ==================================================
 // ==================== WARNINGS ====================
+// ==================================================
 
-const warningsCommand = new SlashCommandBuilder()
-  .setName("warnings")
-  .setDescription("عرض تحذيرات عضو")
-  .addUserOption(option =>
-    option
-      .setName("user")
-      .setDescription("العضو")
-      .setRequired(true)
-  )
+const warningsCommand =
+  new SlashCommandBuilder()
+    .setName("warnings")
+    .setDescription("عرض تحذيرات عضو")
+    .addUserOption(option =>
+      option
+        .setName("user")
+        .setDescription("العضو")
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(
+      PermissionFlagsBits.ModerateMembers
+    );
+
+// ==================================================
+// ===================== SETLOGS ====================
+// ==================================================
+
+const setLogsCommand =
+  new SlashCommandBuilder()
+    .setName("setlogs")
+    .setDescription("تحديد قناة Logs")
+    .addChannelOption(option =>
+      option
+        .setName("channel")
+        .setDescription("قناة استقبال Logs")
+        .addChannelTypes(
+          ChannelType.GuildText
+        )
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(
+      PermissionFlagsBits.Administrator
+    );
+
+// ==================================================
+// ====================== LOCK ======================
+// ==================================================
+
+const lockCommand = new SlashCommandBuilder()
+  .setName("lock")
+  .setDescription("قفل القناة الحالية")
   .setDefaultMemberPermissions(
-    PermissionFlagsBits.ModerateMembers
+    PermissionFlagsBits.ManageChannels
   );
 
-// ==================== SET LOGS ====================
+// ==================================================
+// ===================== UNLOCK =====================
+// ==================================================
 
-const setLogsCommand = new SlashCommandBuilder()
-  .setName("setlogs")
-  .setDescription("تحديد قناة Logs")
-  .addChannelOption(option =>
-    option
-      .setName("channel")
-      .setDescription("قناة استقبال Logs")
-      .addChannelTypes(ChannelType.GuildText)
-      .setRequired(true)
-  )
-  .setDefaultMemberPermissions(
-    PermissionFlagsBits.Administrator
-  );
+const unlockCommand =
+  new SlashCommandBuilder()
+    .setName("unlock")
+    .setDescription("فتح القناة الحالية")
+    .setDefaultMemberPermissions(
+      PermissionFlagsBits.ManageChannels
+    );
 
-// ==================== COMMANDS ====================
+// ==================================================
+// ===================== COMMANDS ===================
+// ==================================================
 
 const commands = [
   timeoutCommand,
@@ -222,12 +275,17 @@ const commands = [
   warnCommand,
   unwarnCommand,
   warningsCommand,
-  setLogsCommand
+  setLogsCommand,
+  lockCommand,
+  unlockCommand
 ];
 
-// ==================== READY ====================
+// ==================================================
+// ======================= READY ====================
+// ==================================================
 
 client.once("ready", async () => {
+
   console.log(
     `✅ LUX TIMEOUT logged in as ${client.user.tag}`
   );
@@ -237,6 +295,7 @@ client.once("ready", async () => {
   }).setToken(TOKEN);
 
   try {
+
     await rest.put(
       Routes.applicationCommands(CLIENT_ID),
       {
@@ -249,184 +308,617 @@ client.once("ready", async () => {
     console.log(
       "✅ All slash commands registered successfully!"
     );
+
   } catch (error) {
+
     console.error(
       "❌ Failed to register commands:",
       error
     );
+
   }
 });
 
-// ==================== INTERACTIONS ====================
+// ==================================================
+// ==================== INTERACTIONS =================
+// ==================================================
 
-client.on("interactionCreate", async interaction => {
+client.on(
+  "interactionCreate",
+  async interaction => {
 
-  if (!interaction.isChatInputCommand()) {
-    return;
-  }
+    if (!interaction.isChatInputCommand()) {
+      return;
+    }
 
-  // ==================== SET LOGS ====================
+    // ==================================================
+    // ===================== SETLOGS =====================
+    // ==================================================
 
-  if (interaction.commandName === "setlogs") {
+    if (
+      interaction.commandName === "setlogs"
+    ) {
 
-    try {
+      try {
 
-      if (!interaction.guildId) {
+        if (!interaction.guildId) {
+          return interaction.reply({
+            content:
+              "❌ هذا الأمر يمكن استخدامه داخل السيرفر فقط.",
+            ephemeral: true
+          });
+        }
+
+        if (
+          !interaction.memberPermissions?.has(
+            PermissionFlagsBits.Administrator
+          )
+        ) {
+          return interaction.reply({
+            content:
+              "❌ تحتاج صلاحية Administrator لاستخدام هذا الأمر.",
+            ephemeral: true
+          });
+        }
+
+        const channel =
+          interaction.options.getChannel(
+            "channel"
+          );
+
+        if (!channel) {
+          return interaction.reply({
+            content:
+              "❌ لم يتم اختيار قناة.",
+            ephemeral: true
+          });
+        }
+
+        if (
+          channel.type !==
+          ChannelType.GuildText
+        ) {
+          return interaction.reply({
+            content:
+              "❌ يجب اختيار قناة نصية.",
+            ephemeral: true
+          });
+        }
+
+        if (
+          !logsChannels ||
+          typeof logsChannels !== "object"
+        ) {
+          logsChannels = {};
+        }
+
+        logsChannels[
+          interaction.guildId
+        ] = channel.id;
+
+        saveJSON(
+          logsFile,
+          logsChannels
+        );
+
         return interaction.reply({
           content:
-            "❌ هذا الأمر يمكن استخدامه داخل السيرفر فقط.",
-          ephemeral: true
+            `✅ تم تحديد قناة الـLogs بنجاح: <#${channel.id}>`
         });
+
+      } catch (error) {
+
+        console.error(
+          "❌ SETLOGS ERROR:",
+          error
+        );
+
+        if (
+          !interaction.replied &&
+          !interaction.deferred
+        ) {
+          return interaction.reply({
+            content:
+              "❌ حدث خطأ أثناء تحديد قناة الـLogs.",
+            ephemeral: true
+          });
+        }
       }
+    }
+
+    // ==================================================
+    // ======================= LOCK ======================
+    // ==================================================
+
+    if (
+      interaction.commandName === "lock"
+    ) {
+
+      try {
+
+        if (
+          !interaction.memberPermissions?.has(
+            PermissionFlagsBits.ManageChannels
+          )
+        ) {
+          return interaction.reply({
+            content:
+              "❌ تحتاج صلاحية Manage Channels لاستخدام هذا الأمر.",
+            ephemeral: true
+          });
+        }
+
+        const channel =
+          interaction.channel;
+
+        if (
+          !channel ||
+          !channel.isTextBased()
+        ) {
+          return interaction.reply({
+            content:
+              "❌ لا يمكن قفل هذه القناة.",
+            ephemeral: true
+          });
+        }
+
+        await channel.permissionOverwrites.edit(
+          interaction.guild.roles.everyone,
+          {
+            SendMessages: false
+          }
+        );
+
+        const embed =
+          new EmbedBuilder()
+            .setTitle("🔒 تم قفل القناة")
+            .addFields(
+              {
+                name: "📢 القناة",
+                value: `${channel}`,
+                inline: true
+              },
+              {
+                name: "👮 بواسطة",
+                value:
+                  `<@${interaction.user.id}>`,
+                inline: true
+              }
+            )
+            .setTimestamp();
+
+        await sendLog(
+          interaction.guild,
+          embed
+        );
+
+        return interaction.reply({
+          content:
+            `🔒 تم قفل ${channel} بنجاح.`
+        });
+
+      } catch (error) {
+
+        console.error(
+          "❌ LOCK ERROR:",
+          error
+        );
+
+        if (!interaction.replied) {
+          return interaction.reply({
+            content:
+              "❌ حدث خطأ أثناء قفل القناة.",
+            ephemeral: true
+          });
+        }
+      }
+    }
+
+    // ==================================================
+    // ====================== UNLOCK =====================
+    // ==================================================
+
+    if (
+      interaction.commandName === "unlock"
+    ) {
+
+      try {
+
+        if (
+          !interaction.memberPermissions?.has(
+            PermissionFlagsBits.ManageChannels
+          )
+        ) {
+          return interaction.reply({
+            content:
+              "❌ تحتاج صلاحية Manage Channels لاستخدام هذا الأمر.",
+            ephemeral: true
+          });
+        }
+
+        const channel =
+          interaction.channel;
+
+        if (
+          !channel ||
+          !channel.isTextBased()
+        ) {
+          return interaction.reply({
+            content:
+              "❌ لا يمكن فتح هذه القناة.",
+            ephemeral: true
+          });
+        }
+
+        await channel.permissionOverwrites.edit(
+          interaction.guild.roles.everyone,
+          {
+            SendMessages: null
+          }
+        );
+
+        const embed =
+          new EmbedBuilder()
+            .setTitle("🔓 تم فتح القناة")
+            .addFields(
+              {
+                name: "📢 القناة",
+                value: `${channel}`,
+                inline: true
+              },
+              {
+                name: "👮 بواسطة",
+                value:
+                  `<@${interaction.user.id}>`,
+                inline: true
+              }
+            )
+            .setTimestamp();
+
+        await sendLog(
+          interaction.guild,
+          embed
+        );
+
+        return interaction.reply({
+          content:
+            `🔓 تم فتح ${channel} بنجاح.`
+        });
+
+      } catch (error) {
+
+        console.error(
+          "❌ UNLOCK ERROR:",
+          error
+        );
+
+        if (!interaction.replied) {
+          return interaction.reply({
+            content:
+              "❌ حدث خطأ أثناء فتح القناة.",
+            ephemeral: true
+          });
+        }
+      }
+    }
+
+    // ==================================================
+    // ============== MODERATION PERMISSION =============
+    // ==================================================
+
+    if (
+      !interaction.memberPermissions?.has(
+        PermissionFlagsBits.ModerateMembers
+      )
+    ) {
+      return interaction.reply({
+        content:
+          "❌ ليس لديك صلاحية استخدام هذا الأمر.",
+        ephemeral: true
+      });
+    }
+
+    const target =
+      interaction.options.getMember(
+        "user"
+      );
+
+    if (!target) {
+      return interaction.reply({
+        content:
+          "❌ لم أستطع العثور على العضو.",
+        ephemeral: true
+      });
+    }
+
+    // ==================================================
+    // ===================== TIMEOUT ====================
+    // ==================================================
+
+    if (
+      interaction.commandName === "timeout"
+    ) {
+
+      const duration =
+        interaction.options.getInteger(
+          "duration"
+        ) || 10;
 
       if (
-        !interaction.memberPermissions?.has(
-          PermissionFlagsBits.Administrator
-        )
+        target.id ===
+        interaction.user.id
       ) {
         return interaction.reply({
           content:
-            "❌ تحتاج صلاحية Administrator لاستخدام هذا الأمر.",
+            "❌ لا يمكنك إعطاء نفسك Timeout.",
           ephemeral: true
         });
       }
 
-      const channel =
-        interaction.options.getChannel("channel");
-
-      if (!channel) {
+      if (!target.moderatable) {
         return interaction.reply({
           content:
-            "❌ لم يتم اختيار قناة.",
+            "❌ لا أستطيع إعطاء هذا العضو Timeout. تأكد من ترتيب الرتب والصلاحيات.",
           ephemeral: true
         });
       }
 
-      if (
-        channel.type !== ChannelType.GuildText
-      ) {
+      try {
+
+        await target.timeout(
+          duration * 60 * 1000,
+          `Timeout بواسطة ${interaction.user.tag}`
+        );
+
+        const embed =
+          new EmbedBuilder()
+            .setTitle("🔇 Timeout")
+            .addFields(
+              {
+                name: "👤 العضو",
+                value:
+                  `<@${target.id}>`,
+                inline: true
+              },
+              {
+                name: "👮 المشرف",
+                value:
+                  `<@${interaction.user.id}>`,
+                inline: true
+              },
+              {
+                name: "⏱️ المدة",
+                value:
+                  `${duration} دقيقة`,
+                inline: true
+              }
+            )
+            .setTimestamp();
+
+        await sendLog(
+          interaction.guild,
+          embed
+        );
+
         return interaction.reply({
           content:
-            "❌ يجب اختيار قناة نصية.",
+            `🔇 تم إعطاء <@${target.id}> Timeout لمدة **${duration} دقيقة**.\n` +
+            `👮 بواسطة: <@${interaction.user.id}>`
+        });
+
+      } catch (error) {
+
+        console.error(
+          "❌ TIMEOUT ERROR:",
+          error
+        );
+
+        return interaction.reply({
+          content:
+            "❌ حدث خطأ أثناء إعطاء Timeout.",
           ephemeral: true
         });
       }
+    }
 
-      if (
-        !logsChannels ||
-        typeof logsChannels !== "object"
-      ) {
-        logsChannels = {};
+    // ==================================================
+    // ================ REMOVE TIMEOUT ==================
+    // ==================================================
+
+    if (
+      interaction.commandName ===
+      "removetimeout"
+    ) {
+
+      try {
+
+        await target.timeout(
+          null,
+          `إزالة Timeout بواسطة ${interaction.user.tag}`
+        );
+
+        const embed =
+          new EmbedBuilder()
+            .setTitle("🔊 إزالة Timeout")
+            .addFields(
+              {
+                name: "👤 العضو",
+                value:
+                  `<@${target.id}>`,
+                inline: true
+              },
+              {
+                name: "👮 المشرف",
+                value:
+                  `<@${interaction.user.id}>`,
+                inline: true
+              }
+            )
+            .setTimestamp();
+
+        await sendLog(
+          interaction.guild,
+          embed
+        );
+
+        return interaction.reply({
+          content:
+            `🔊 تم إزالة Timeout عن <@${target.id}> بنجاح.`
+        });
+
+      } catch (error) {
+
+        console.error(
+          "❌ REMOVE TIMEOUT ERROR:",
+          error
+        );
+
+        return interaction.reply({
+          content:
+            "❌ لم أستطع إزالة Timeout.",
+          ephemeral: true
+        });
+      }
+    }
+
+    // ==================================================
+    // ======================= WARN ======================
+    // ==================================================
+
+    if (
+      interaction.commandName === "warn"
+    ) {
+
+      const reason =
+        interaction.options.getString(
+          "reason"
+        );
+
+      const key =
+        `${interaction.guildId}-${target.id}`;
+
+      if (!warnings[key]) {
+        warnings[key] = [];
       }
 
-      logsChannels[interaction.guildId] =
-        channel.id;
+      warnings[key].push({
+        reason: reason,
+        moderator:
+          interaction.user.id,
+        date:
+          new Date().toISOString()
+      });
 
       saveJSON(
-        logsFile,
-        logsChannels
+        warningsFile,
+        warnings
+      );
+
+      const embed =
+        new EmbedBuilder()
+          .setTitle("⚠️ Warn")
+          .addFields(
+            {
+              name: "👤 العضو",
+              value:
+                `<@${target.id}>`,
+              inline: true
+            },
+            {
+              name: "👮 المشرف",
+              value:
+                `<@${interaction.user.id}>`,
+              inline: true
+            },
+            {
+              name: "📝 السبب",
+              value: reason
+            },
+            {
+              name: "📊 عدد التحذيرات",
+              value:
+                `${warnings[key].length}`,
+              inline: true
+            }
+          )
+          .setTimestamp();
+
+      await sendLog(
+        interaction.guild,
+        embed
       );
 
       return interaction.reply({
         content:
-          `✅ تم تحديد قناة الـLogs بنجاح: <#${channel.id}>`
+          `⚠️ تم تحذير <@${target.id}> بنجاح.\n` +
+          `📝 السبب: **${reason}**\n` +
+          `📊 عدد التحذيرات: **${warnings[key].length}**`
       });
+    }
 
-    } catch (error) {
+    // ==================================================
+    // ===================== UNWARN =====================
+    // ==================================================
 
-      console.error(
-        "❌ SETLOGS ERROR:",
-        error
-      );
+    if (
+      interaction.commandName ===
+      "unwarn"
+    ) {
+
+      const key =
+        `${interaction.guildId}-${target.id}`;
+
+      const list =
+        warnings[key];
 
       if (
-        !interaction.replied &&
-        !interaction.deferred
+        !list ||
+        list.length === 0
       ) {
         return interaction.reply({
           content:
-            "❌ حدث خطأ أثناء تحديد قناة الـLogs.",
+            `✅ <@${target.id}> لا يملك أي تحذيرات.`,
           ephemeral: true
         });
       }
-    }
-  }
 
-  // ==================== MODERATION PERMISSION ====================
+      const removed =
+        list.pop();
 
-  if (
-    !interaction.memberPermissions?.has(
-      PermissionFlagsBits.ModerateMembers
-    )
-  ) {
-    return interaction.reply({
-      content:
-        "❌ ليس لديك صلاحية استخدام هذا الأمر.",
-      ephemeral: true
-    });
-  }
-
-  const target =
-    interaction.options.getMember("user");
-
-  if (!target) {
-    return interaction.reply({
-      content:
-        "❌ لم أستطع العثور على العضو.",
-      ephemeral: true
-    });
-  }
-
-  // ==================== TIMEOUT ====================
-
-  if (interaction.commandName === "timeout") {
-
-    const duration =
-      interaction.options.getInteger("duration") || 10;
-
-    if (target.id === interaction.user.id) {
-      return interaction.reply({
-        content:
-          "❌ لا يمكنك إعطاء نفسك Timeout.",
-        ephemeral: true
-      });
-    }
-
-    if (!target.moderatable) {
-      return interaction.reply({
-        content:
-          "❌ لا أستطيع إعطاء هذا العضو Timeout. تأكد من ترتيب الرتب والصلاحيات.",
-        ephemeral: true
-      });
-    }
-
-    try {
-
-      await target.timeout(
-        duration * 60 * 1000,
-        `Timeout بواسطة ${interaction.user.tag}`
+      saveJSON(
+        warningsFile,
+        warnings
       );
 
-      const embed = new EmbedBuilder()
-        .setTitle("🔇 Timeout")
-        .addFields(
-          {
-            name: "👤 العضو",
-            value: `<@${target.id}>`,
-            inline: true
-          },
-          {
-            name: "👮 المشرف",
-            value: `<@${interaction.user.id}>`,
-            inline: true
-          },
-          {
-            name: "⏱️ المدة",
-            value: `${duration} دقيقة`,
-            inline: true
-          }
-        )
-        .setTimestamp();
+      const embed =
+        new EmbedBuilder()
+          .setTitle("✅ إزالة Warn")
+          .addFields(
+            {
+              name: "👤 العضو",
+              value:
+                `<@${target.id}>`,
+              inline: true
+            },
+            {
+              name: "👮 المشرف",
+              value:
+                `<@${interaction.user.id}>`,
+              inline: true
+            },
+            {
+              name: "📝 التحذير المحذوف",
+              value:
+                removed.reason
+            },
+            {
+              name: "📊 المتبقي",
+              value:
+                `${list.length}`,
+              inline: true
+            }
+          )
+          .setTimestamp();
 
       await sendLog(
         interaction.guild,
@@ -435,254 +927,76 @@ client.on("interactionCreate", async interaction => {
 
       return interaction.reply({
         content:
-          `🔇 تم إعطاء <@${target.id}> Timeout لمدة **${duration} دقيقة**.\n` +
-          `👮 بواسطة: <@${interaction.user.id}>`
-      });
-
-    } catch (error) {
-
-      console.error(
-        "❌ TIMEOUT ERROR:",
-        error
-      );
-
-      return interaction.reply({
-        content:
-          "❌ حدث خطأ أثناء إعطاء Timeout.",
-        ephemeral: true
+          `✅ تم إزالة آخر تحذير عن <@${target.id}>.\n` +
+          `📝 السبب: **${removed.reason}**\n` +
+          `📊 التحذيرات المتبقية: **${list.length}**`
       });
     }
-  }
 
-  // ==================== REMOVE TIMEOUT ====================
+    // ==================================================
+    // ==================== WARNINGS ====================
+    // ==================================================
 
-  if (
-    interaction.commandName === "removetimeout"
-  ) {
+    if (
+      interaction.commandName ===
+      "warnings"
+    ) {
 
-    try {
+      const key =
+        `${interaction.guildId}-${target.id}`;
 
-      await target.timeout(
-        null,
-        `إزالة Timeout بواسطة ${interaction.user.tag}`
-      );
+      const list =
+        warnings[key];
 
-      const embed = new EmbedBuilder()
-        .setTitle("🔊 إزالة Timeout")
-        .addFields(
-          {
-            name: "👤 العضو",
-            value: `<@${target.id}>`,
-            inline: true
-          },
-          {
-            name: "👮 المشرف",
-            value: `<@${interaction.user.id}>`,
-            inline: true
-          }
-        )
-        .setTimestamp();
+      if (
+        !list ||
+        list.length === 0
+      ) {
+        return interaction.reply({
+          content:
+            `📋 <@${target.id}> لا يملك أي تحذيرات.`,
+          ephemeral: true
+        });
+      }
 
-      await sendLog(
-        interaction.guild,
-        embed
-      );
+      const embed =
+        new EmbedBuilder()
+          .setTitle("⚠️ تحذيرات العضو")
+          .setDescription(
+            `العضو: <@${target.id}>\n` +
+            `عدد التحذيرات: **${list.length}**`
+          )
+          .setTimestamp();
 
-      return interaction.reply({
-        content:
-          `🔊 تم إزالة Timeout عن <@${target.id}> بنجاح.`
-      });
+      list.forEach(
+        (warning, index) => {
 
-    } catch (error) {
+          embed.addFields({
+            name:
+              `تحذير #${index + 1}`,
+            value:
+              `📝 السبب: ${warning.reason}\n` +
+              `👮 المشرف: <@${warning.moderator}>\n` +
+              `📅 <t:${Math.floor(
+                new Date(
+                  warning.date
+                ).getTime() / 1000
+              )}:F>`
+          });
 
-      console.error(
-        "❌ REMOVE TIMEOUT ERROR:",
-        error
-      );
-
-      return interaction.reply({
-        content:
-          "❌ لم أستطع إزالة Timeout.",
-        ephemeral: true
-      });
-    }
-  }
-
-  // ==================== WARN ====================
-
-  if (interaction.commandName === "warn") {
-
-    const reason =
-      interaction.options.getString("reason");
-
-    const key =
-      `${interaction.guildId}-${target.id}`;
-
-    if (!warnings[key]) {
-      warnings[key] = [];
-    }
-
-    warnings[key].push({
-      reason: reason,
-      moderator: interaction.user.id,
-      date: new Date().toISOString()
-    });
-
-    saveJSON(
-      warningsFile,
-      warnings
-    );
-
-    const embed = new EmbedBuilder()
-      .setTitle("⚠️ Warn")
-      .addFields(
-        {
-          name: "👤 العضو",
-          value: `<@${target.id}>`,
-          inline: true
-        },
-        {
-          name: "👮 المشرف",
-          value: `<@${interaction.user.id}>`,
-          inline: true
-        },
-        {
-          name: "📝 السبب",
-          value: reason
-        },
-        {
-          name: "📊 عدد التحذيرات",
-          value: `${warnings[key].length}`,
-          inline: true
         }
-      )
-      .setTimestamp();
+      );
 
-    await sendLog(
-      interaction.guild,
-      embed
-    );
-
-    return interaction.reply({
-      content:
-        `⚠️ تم تحذير <@${target.id}> بنجاح.\n` +
-        `📝 السبب: **${reason}**\n` +
-        `📊 عدد التحذيرات: **${warnings[key].length}**`
-    });
-  }
-
-  // ==================== UNWARN ====================
-
-  if (
-    interaction.commandName === "unwarn"
-  ) {
-
-    const key =
-      `${interaction.guildId}-${target.id}`;
-
-    const list = warnings[key];
-
-    if (!list || list.length === 0) {
       return interaction.reply({
-        content:
-          `✅ <@${target.id}> لا يملك أي تحذيرات.`,
+        embeds: [embed],
         ephemeral: true
       });
     }
-
-    const removed = list.pop();
-
-    saveJSON(
-      warningsFile,
-      warnings
-    );
-
-    const embed = new EmbedBuilder()
-      .setTitle("✅ إزالة Warn")
-      .addFields(
-        {
-          name: "👤 العضو",
-          value: `<@${target.id}>`,
-          inline: true
-        },
-        {
-          name: "👮 المشرف",
-          value: `<@${interaction.user.id}>`,
-          inline: true
-        },
-        {
-          name: "📝 التحذير المحذوف",
-          value: removed.reason
-        },
-        {
-          name: "📊 المتبقي",
-          value: `${list.length}`,
-          inline: true
-        }
-      )
-      .setTimestamp();
-
-    await sendLog(
-      interaction.guild,
-      embed
-    );
-
-    return interaction.reply({
-      content:
-        `✅ تم إزالة آخر تحذير عن <@${target.id}>.\n` +
-        `📝 السبب: **${removed.reason}**\n` +
-        `📊 التحذيرات المتبقية: **${list.length}**`
-    });
   }
+);
 
-  // ==================== WARNINGS ====================
-
-  if (
-    interaction.commandName === "warnings"
-  ) {
-
-    const key =
-      `${interaction.guildId}-${target.id}`;
-
-    const list = warnings[key];
-
-    if (!list || list.length === 0) {
-      return interaction.reply({
-        content:
-          `📋 <@${target.id}> لا يملك أي تحذيرات.`,
-        ephemeral: true
-      });
-    }
-
-    const embed = new EmbedBuilder()
-      .setTitle("⚠️ تحذيرات العضو")
-      .setDescription(
-        `العضو: <@${target.id}>\n` +
-        `عدد التحذيرات: **${list.length}**`
-      )
-      .setTimestamp();
-
-    list.forEach((warning, index) => {
-
-      embed.addFields({
-        name: `تحذير #${index + 1}`,
-        value:
-          `📝 السبب: ${warning.reason}\n` +
-          `👮 المشرف: <@${warning.moderator}>\n` +
-          `📅 <t:${Math.floor(
-            new Date(warning.date).getTime() / 1000
-          )}:F>`
-      });
-
-    });
-
-    return interaction.reply({
-      embeds: [embed],
-      ephemeral: true
-    });
-  }
-});
-
-// ==================== LOGIN ====================
+// ==================================================
+// ====================== LOGIN ======================
+// ==================================================
 
 client.login(TOKEN);
