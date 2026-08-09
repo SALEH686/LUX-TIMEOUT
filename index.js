@@ -201,7 +201,7 @@ const setLogsCommand = new SlashCommandBuilder()
       .setRequired(true)
   )
   .setDefaultMemberPermissions(
-    PermissionFlagsBits.Administrator
+    PermissionFlagsBits.ManageGuild
   );
 
 // ==================== COMMANDS ====================
@@ -257,20 +257,20 @@ client.on("interactionCreate", async interaction => {
   // ==================== SET LOGS ====================
 
   if (interaction.commandName === "setlogs") {
-    const channel =
-      interaction.options.getChannel("channel");
-
     if (
       !interaction.memberPermissions.has(
-        PermissionFlagsBits.Administrator
+        PermissionFlagsBits.ManageGuild
       )
     ) {
       return interaction.reply({
         content:
-          "❌ تحتاج صلاحية Administrator لاستخدام هذا الأمر.",
+          "❌ تحتاج صلاحية Manage Server لاستخدام هذا الأمر.",
         ephemeral: true
       });
     }
+
+    const channel =
+      interaction.options.getChannel("channel");
 
     logsChannels[interaction.guild.id] = channel.id;
 
@@ -282,7 +282,7 @@ client.on("interactionCreate", async interaction => {
     });
   }
 
-  // ==================== PERMISSION ====================
+  // ==================== MODERATION PERMISSION ====================
 
   if (
     !interaction.memberPermissions.has(
@@ -324,7 +324,7 @@ client.on("interactionCreate", async interaction => {
     if (!target.moderatable) {
       return interaction.reply({
         content:
-          "❌ لا أستطيع إعطاء هذا العضو Timeout.",
+          "❌ لا أستطيع إعطاء هذا العضو Timeout. تأكد من ترتيب الرتب.",
         ephemeral: true
       });
     }
