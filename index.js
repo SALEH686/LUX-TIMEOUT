@@ -12,7 +12,10 @@ const {
 } = require("discord.js");
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds]
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers
+  ]
 });
 
 const TOKEN = process.env.DISCORD_TOKEN;
@@ -32,11 +35,13 @@ if (!CLIENT_ID) {
 
 const warningsFile = "./warnings.json";
 const logsFile = "./logs.json";
+const welcomeFile = "./welcome.json";
 
 let warnings = {};
 let logsChannels = {};
+let welcomeChannels = {};
 
-// ==================== LOAD FILE ====================
+// ==================== LOAD JSON ====================
 
 function loadJSON(file) {
   try {
@@ -52,13 +57,14 @@ function loadJSON(file) {
     }
 
     return JSON.parse(data);
+
   } catch (error) {
     console.error(`❌ Failed to load ${file}:`, error);
     return {};
   }
 }
 
-// ==================== SAVE FILE ====================
+// ==================== SAVE JSON ====================
 
 function saveJSON(file, data) {
   try {
@@ -73,20 +79,17 @@ function saveJSON(file, data) {
 
 warnings = loadJSON(warningsFile);
 logsChannels = loadJSON(logsFile);
+welcomeChannels = loadJSON(welcomeFile);
 
-// ==================== SEND LOG ====================
+// ==================== LOG FUNCTION ====================
 
 async function sendLog(guild, embed) {
   try {
-    if (!guild) {
-      return;
-    }
+    if (!guild) return;
 
     const channelId = logsChannels[guild.id];
 
-    if (!channelId) {
-      return;
-    }
+    if (!channelId) return;
 
     const channel =
       guild.channels.cache.get(channelId);
@@ -266,6 +269,27 @@ const unlockCommand =
     );
 
 // ==================================================
+// ==================== SETWELCOME ==================
+// ==================================================
+
+const setWelcomeCommand =
+  new SlashCommandBuilder()
+    .setName("setwelcome")
+    .setDescription("تحديد قناة الترحيب")
+    .addChannelOption(option =>
+      option
+        .setName("channel")
+        .setDescription("قناة الترحيب")
+        .addChannelTypes(
+          ChannelType.GuildText
+        )
+        .setRequired(true)
+    )
+    .setDefaultMemberPermissions(
+      PermissionFlagsBits.Administrator
+    );
+
+// ==================================================
 // ===================== COMMANDS ===================
 // ==================================================
 
@@ -277,7 +301,8 @@ const commands = [
   warningsCommand,
   setLogsCommand,
   lockCommand,
-  unlockCommand
+  unlockCommand,
+  setWelcomeCommand
 ];
 
 // ==================================================
@@ -313,6 +338,63 @@ client.once("ready", async () => {
 
     console.error(
       "❌ Failed to register commands:",
+      error
+    );
+
+  }
+});
+
+// ==================================================
+// ================= MEMBER JOIN ====================
+// ==================================================
+
+client.on("guildMemberAdd", async member => {
+
+  try {
+
+    const channelId =
+      welcomeChannels[member.guild.id];
+
+    if (!channelId) {
+      return;
+    }
+
+    const channel =
+      member.guild.channels.cache.get(
+        channelId
+      );
+
+    if (
+      !channel ||
+      !channel.isTextBased()
+    ) {
+      return;
+    }
+
+    const embed =
+      new EmbedBuilder()
+        .setTitle("👋 عضو جديد!")
+        .setDescription(
+          `أهلًا وسهلًا ${member} في **${member.guild.name}** 🎉\n` +
+          `نتمنى لك وقتًا ممتعًا معنا!`
+        )
+        .setThumbnail(
+          member.user.displayAvatarURL({
+            dynamic: true,
+            size: 256
+          })
+        )
+        .setTimestamp();
+
+    await channel.send({
+      content: `${member}`,
+      embeds: [embed]
+    });
+
+  } catch (error) {
+
+    console.error(
+      "❌ WELCOME ERROR:",
       error
     );
 
@@ -374,24 +456,6 @@ client.on(
           });
         }
 
-        if (
-          channel.type !==
-          ChannelType.GuildText
-        ) {
-          return interaction.reply({
-            content:
-              "❌ يجب اختيار قناة نصية.",
-            ephemeral: true
-          });
-        }
-
-        if (
-          !logsChannels ||
-          typeof logsChannels !== "object"
-        ) {
-          logsChannels = {};
-        }
-
         logsChannels[
           interaction.guildId
         ] = channel.id;
@@ -420,6 +484,94 @@ client.on(
           return interaction.reply({
             content:
               "❌ حدث خطأ أثناء تحديد قناة الـLogs.",
+            ephemeral: true
+          });
+        }
+      }
+    }
+
+    // ==================================================
+    // ================== SETWELCOME =====================
+    // ==================================================
+
+    if (
+      interaction.commandName === "setwelcome"
+    ) {
+
+      try {
+
+        if (!interaction.guildId) {
+          return interaction.reply({
+            content:
+              "❌ هذا الأمر يمكن استخدامه داخل السيرفر فقط.",
+            ephemeral: true
+          });
+        }
+
+        if (
+          !interaction.memberPermissions?.has(
+            PermissionFlagsBits.Administrator
+          )
+        ) {
+          return interaction.reply({
+            content:
+              "❌ تحتاج صلاحية Administrator لاستخدام هذا الأمر.",
+            ephemeral: true
+          });
+        }
+
+        const channel =
+          interaction.options.getChannel(
+            "channel"
+          );
+
+        if (!channel) {
+          return interaction.reply({
+            content:
+              "❌ لم يتم اختيار قناة.",
+            ephemeral: true
+          });
+        }
+
+        if (
+          channel.type !==
+          ChannelType.GuildText
+        ) {
+          return interaction.reply({
+            content:
+              "❌ يجب اختيار قناة نصية.",
+            ephemeral: true
+          });
+        }
+
+        welcomeChannels[
+          interaction.guildId
+        ] = channel.id;
+
+        saveJSON(
+          welcomeFile,
+          welcomeChannels
+        );
+
+        return interaction.reply({
+          content:
+            `👋 تم تحديد قناة الترحيب بنجاح: <#${channel.id}>`
+        });
+
+      } catch (error) {
+
+        console.error(
+          "❌ SETWELCOME ERROR:",
+          error
+        );
+
+        if (
+          !interaction.replied &&
+          !interaction.deferred
+        ) {
+          return interaction.reply({
+            content:
+              "❌ حدث خطأ أثناء تحديد قناة الترحيب.",
             ephemeral: true
           });
         }
@@ -619,9 +771,7 @@ client.on(
     }
 
     const target =
-      interaction.options.getMember(
-        "user"
-      );
+      interaction.options.getMember("user");
 
     if (!target) {
       return interaction.reply({
@@ -734,269 +884,4 @@ client.on(
 
         await target.timeout(
           null,
-          `إزالة Timeout بواسطة ${interaction.user.tag}`
-        );
-
-        const embed =
-          new EmbedBuilder()
-            .setTitle("🔊 إزالة Timeout")
-            .addFields(
-              {
-                name: "👤 العضو",
-                value:
-                  `<@${target.id}>`,
-                inline: true
-              },
-              {
-                name: "👮 المشرف",
-                value:
-                  `<@${interaction.user.id}>`,
-                inline: true
-              }
-            )
-            .setTimestamp();
-
-        await sendLog(
-          interaction.guild,
-          embed
-        );
-
-        return interaction.reply({
-          content:
-            `🔊 تم إزالة Timeout عن <@${target.id}> بنجاح.`
-        });
-
-      } catch (error) {
-
-        console.error(
-          "❌ REMOVE TIMEOUT ERROR:",
-          error
-        );
-
-        return interaction.reply({
-          content:
-            "❌ لم أستطع إزالة Timeout.",
-          ephemeral: true
-        });
-      }
-    }
-
-    // ==================================================
-    // ======================= WARN ======================
-    // ==================================================
-
-    if (
-      interaction.commandName === "warn"
-    ) {
-
-      const reason =
-        interaction.options.getString(
-          "reason"
-        );
-
-      const key =
-        `${interaction.guildId}-${target.id}`;
-
-      if (!warnings[key]) {
-        warnings[key] = [];
-      }
-
-      warnings[key].push({
-        reason: reason,
-        moderator:
-          interaction.user.id,
-        date:
-          new Date().toISOString()
-      });
-
-      saveJSON(
-        warningsFile,
-        warnings
-      );
-
-      const embed =
-        new EmbedBuilder()
-          .setTitle("⚠️ Warn")
-          .addFields(
-            {
-              name: "👤 العضو",
-              value:
-                `<@${target.id}>`,
-              inline: true
-            },
-            {
-              name: "👮 المشرف",
-              value:
-                `<@${interaction.user.id}>`,
-              inline: true
-            },
-            {
-              name: "📝 السبب",
-              value: reason
-            },
-            {
-              name: "📊 عدد التحذيرات",
-              value:
-                `${warnings[key].length}`,
-              inline: true
-            }
-          )
-          .setTimestamp();
-
-      await sendLog(
-        interaction.guild,
-        embed
-      );
-
-      return interaction.reply({
-        content:
-          `⚠️ تم تحذير <@${target.id}> بنجاح.\n` +
-          `📝 السبب: **${reason}**\n` +
-          `📊 عدد التحذيرات: **${warnings[key].length}**`
-      });
-    }
-
-    // ==================================================
-    // ===================== UNWARN =====================
-    // ==================================================
-
-    if (
-      interaction.commandName ===
-      "unwarn"
-    ) {
-
-      const key =
-        `${interaction.guildId}-${target.id}`;
-
-      const list =
-        warnings[key];
-
-      if (
-        !list ||
-        list.length === 0
-      ) {
-        return interaction.reply({
-          content:
-            `✅ <@${target.id}> لا يملك أي تحذيرات.`,
-          ephemeral: true
-        });
-      }
-
-      const removed =
-        list.pop();
-
-      saveJSON(
-        warningsFile,
-        warnings
-      );
-
-      const embed =
-        new EmbedBuilder()
-          .setTitle("✅ إزالة Warn")
-          .addFields(
-            {
-              name: "👤 العضو",
-              value:
-                `<@${target.id}>`,
-              inline: true
-            },
-            {
-              name: "👮 المشرف",
-              value:
-                `<@${interaction.user.id}>`,
-              inline: true
-            },
-            {
-              name: "📝 التحذير المحذوف",
-              value:
-                removed.reason
-            },
-            {
-              name: "📊 المتبقي",
-              value:
-                `${list.length}`,
-              inline: true
-            }
-          )
-          .setTimestamp();
-
-      await sendLog(
-        interaction.guild,
-        embed
-      );
-
-      return interaction.reply({
-        content:
-          `✅ تم إزالة آخر تحذير عن <@${target.id}>.\n` +
-          `📝 السبب: **${removed.reason}**\n` +
-          `📊 التحذيرات المتبقية: **${list.length}**`
-      });
-    }
-
-    // ==================================================
-    // ==================== WARNINGS ====================
-    // ==================================================
-
-    if (
-      interaction.commandName ===
-      "warnings"
-    ) {
-
-      const key =
-        `${interaction.guildId}-${target.id}`;
-
-      const list =
-        warnings[key];
-
-      if (
-        !list ||
-        list.length === 0
-      ) {
-        return interaction.reply({
-          content:
-            `📋 <@${target.id}> لا يملك أي تحذيرات.`,
-          ephemeral: true
-        });
-      }
-
-      const embed =
-        new EmbedBuilder()
-          .setTitle("⚠️ تحذيرات العضو")
-          .setDescription(
-            `العضو: <@${target.id}>\n` +
-            `عدد التحذيرات: **${list.length}**`
-          )
-          .setTimestamp();
-
-      list.forEach(
-        (warning, index) => {
-
-          embed.addFields({
-            name:
-              `تحذير #${index + 1}`,
-            value:
-              `📝 السبب: ${warning.reason}\n` +
-              `👮 المشرف: <@${warning.moderator}>\n` +
-              `📅 <t:${Math.floor(
-                new Date(
-                  warning.date
-                ).getTime() / 1000
-              )}:F>`
-          });
-
-        }
-      );
-
-      return interaction.reply({
-        embeds: [embed],
-        ephemeral: true
-      });
-    }
-  }
-);
-
-// ==================================================
-// ====================== LOGIN ======================
-// ==================================================
-
-client.login(TOKEN);
+          `إز
