@@ -1,3 +1,5 @@
+const fs = require("fs");
+
 const {
   Client,
   GatewayIntentBits,
@@ -16,36 +18,50 @@ const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 
 if (!TOKEN) {
-  console.error("DISCORD_TOKEN is missing!");
+  console.error("❌ DISCORD_TOKEN is missing!");
   process.exit(1);
 }
 
 if (!CLIENT_ID) {
-  console.error("CLIENT_ID is missing!");
+  console.error("❌ CLIENT_ID is missing!");
   process.exit(1);
 }
 
-const fs = require("fs");
+// ==================== WARNINGS ====================
 
 const warningsFile = "./warnings.json";
 
 let warnings = {};
 
-if (fs.existsSync(warningsFile)) {
+function loadWarnings() {
   try {
-    warnings = JSON.parse(fs.readFileSync(warningsFile, "utf8"));
+    if (!fs.existsSync(warningsFile)) {
+      fs.writeFileSync(warningsFile, "{}");
+    }
+
+    const data = fs.readFileSync(warningsFile, "utf8");
+
+    warnings = data.trim() ? JSON.parse(data) : {};
   } catch (error) {
-    console.error("❌ Failed to read warnings.json:", error);
+    console.error("❌ Failed to load warnings:", error);
     warnings = {};
   }
 }
 
 function saveWarnings() {
-  fs.writeFileSync(
-    warningsFile,
-    JSON.stringify(warnings, null, 2)
-  );
+  try {
+    fs.writeFileSync(
+      warningsFile,
+      JSON.stringify(warnings, null, 2)
+    );
+  } catch (error) {
+    console.error("❌ Failed to save warnings:", error);
+  }
 }
+
+loadWarnings();
+
+// ==================== TIMEOUT ====================
 
 const timeoutCommand = new SlashCommandBuilder()
   .setName("timeout")
@@ -69,7 +85,11 @@ const timeoutCommand = new SlashCommandBuilder()
         { name: "ساعة", value: 60 }
       )
   )
-  .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers);
+  .setDefaultMemberPermissions(
+    PermissionFlagsBits.ModerateMembers
+  );
+
+// ==================== REMOVE TIMEOUT ====================
 
 const removeTimeoutCommand = new SlashCommandBuilder()
   .setName("removetimeout")
@@ -80,7 +100,11 @@ const removeTimeoutCommand = new SlashCommandBuilder()
       .setDescription("العضو")
       .setRequired(true)
   )
-  .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers);
+  .setDefaultMemberPermissions(
+    PermissionFlagsBits.ModerateMembers
+  );
+
+// ==================== WARN ====================
 
 const warnCommand = new SlashCommandBuilder()
   .setName("warn")
@@ -97,18 +121,26 @@ const warnCommand = new SlashCommandBuilder()
       .setDescription("سبب التحذير")
       .setRequired(true)
   )
-  .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers);
+  .setDefaultMemberPermissions(
+    PermissionFlagsBits.ModerateMembers
+  );
+
+// ==================== UNWARN ====================
 
 const unwarnCommand = new SlashCommandBuilder()
   .setName("unwarn")
-  .setDescription("إزالة آخر تحذير")
+  .setDescription("إزالة آخر تحذير من عضو")
   .addUserOption(option =>
     option
       .setName("user")
       .setDescription("العضو")
       .setRequired(true)
   )
-  .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers);
+  .setDefaultMemberPermissions(
+    PermissionFlagsBits.ModerateMembers
+  );
+
+// ==================== WARNINGS ====================
 
 const warningsCommand = new SlashCommandBuilder()
   .setName("warnings")
@@ -119,7 +151,11 @@ const warningsCommand = new SlashCommandBuilder()
       .setDescription("العضو")
       .setRequired(true)
   )
-  .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers);
+  .setDefaultMemberPermissions(
+    PermissionFlagsBits.ModerateMembers
+  );
+
+// ==================== COMMANDS ====================
 
 const commands = [
   timeoutCommand,
@@ -129,27 +165,44 @@ const commands = [
   warningsCommand
 ];
 
-client.once("ready", async () => {
-  console.log(`LUX TIMEOUT logged in as ${client.user.tag}`);
+// ==================== READY ====================
 
-  const rest = new REST({ version: "10" }).setToken(TOKEN);
+client.once("ready", async () => {
+  console.log(
+    `✅ LUX TIMEOUT logged in as ${client.user.tag}`
+  );
+
+  const rest = new REST({
+    version: "10"
+  }).setToken(TOKEN);
 
   try {
     await rest.put(
       Routes.applicationCommands(CLIENT_ID),
       {
-        body: commands.map(command => command.toJSON())
+        body: commands.map(command =>
+          command.toJSON()
+        )
       }
     );
 
-    console.log("Commands registered successfully!");
+    console.log(
+      "✅ All slash commands registered successfully!"
+    );
   } catch (error) {
-    console.error("Command registration error:", error);
+    console.error(
+      "❌ Failed to register commands:",
+      error
+    );
   }
 });
 
+// ==================== INTERACTIONS ====================
+
 client.on("interactionCreate", async interaction => {
-  if (!interaction.isChatInputCommand()) return;
+  if (!interaction.isChatInputCommand()) {
+    return;
+  }
 
   if (
     !interaction.memberPermissions.has(
@@ -162,7 +215,8 @@ client.on("interactionCreate", async interaction => {
     });
   }
 
-  const target = interaction.options.getMember("user");
+  const target =
+    interaction.options.getMember("user");
 
   if (!target) {
     return interaction.reply({
@@ -170,6 +224,8 @@ client.on("interactionCreate", async interaction => {
       ephemeral: true
     });
   }
+
+  // ==================== TIMEOUT ====================
 
   if (interaction.commandName === "timeout") {
     const duration =
@@ -184,7 +240,8 @@ client.on("interactionCreate", async interaction => {
 
     if (!target.moderatable) {
       return interaction.reply({
-        content: "❌ لا أستطيع إعطاء هذا العضو Timeout.",
+        content:
+          "❌ لا أستطيع إعطاء هذا العضو Timeout. تأكد من ترتيب الرتب.",
         ephemeral: true
       });
     }
@@ -204,11 +261,14 @@ client.on("interactionCreate", async interaction => {
       console.error(error);
 
       return interaction.reply({
-        content: "❌ حدث خطأ أثناء إعطاء Timeout.",
+        content:
+          "❌ حدث خطأ أثناء إعطاء Timeout.",
         ephemeral: true
       });
     }
   }
+
+  // ==================== REMOVE TIMEOUT ====================
 
   if (interaction.commandName === "removetimeout") {
     try {
@@ -219,154 +279,85 @@ client.on("interactionCreate", async interaction => {
 
       return interaction.reply({
         content:
-          `🔊 تم إزالة Timeout عن <@${target.id}> بنجاح.`
+          `🔊 تم إزالة Timeout عن <@${target.id}> بنجاح.\n` +
+          `👮 بواسطة: <@${interaction.user.id}>`
       });
     } catch (error) {
       console.error(error);
 
       return interaction.reply({
-        content: "❌ لم أستطع إزالة Timeout.",
+        content:
+          "❌ لم أستطع إزالة Timeout.",
         ephemeral: true
       });
     }
   }
 
+  // ==================== WARN ====================
+
   if (interaction.commandName === "warn") {
-  const reason = interaction.options.getString("reason");
-
-  const key = `${interaction.guild.id}-${target.id}`;
-
-  if (!warnings[key]) {
-    warnings[key] = [];
-  }
-
-  warnings[key].push({
-    reason: reason,
-    moderator: interaction.user.id,
-    date: new Date().toISOString()
-  });
-
-  saveWarnings();
-
-  return interaction.reply({
-    content:
-      `⚠️ تم تحذير <@${target.id}>.\n` +
-      `📝 السبب: **${reason}**\n` +
-      `📊 عدد التحذيرات: **${warnings[key].length}**`
-  });
-  }
     const reason =
       interaction.options.getString("reason");
 
     const key =
       `${interaction.guild.id}-${target.id}`;
 
-    if (!warnings.has(key)) {
-      warnings.set(key, []);
+    if (!warnings[key]) {
+      warnings[key] = [];
     }
 
-    const list = warnings.get(key);
-
-    list.push({
+    warnings[key].push({
       reason: reason,
       moderator: interaction.user.id,
-      date: new Date()
+      date: new Date().toISOString()
     });
+
+    saveWarnings();
 
     return interaction.reply({
       content:
-        `⚠️ تم تحذير <@${target.id}>.\n` +
+        `⚠️ تم تحذير <@${target.id}> بنجاح.\n` +
         `📝 السبب: **${reason}**\n` +
-        `📊 عدد التحذيرات: **${list.length}**`
+        `📊 عدد التحذيرات: **${warnings[key].length}**\n` +
+        `👮 بواسطة: <@${interaction.user.id}>`
     });
   }
+
+  // ==================== UNWARN ====================
 
   if (interaction.commandName === "unwarn") {
-  const key = `${interaction.guild.id}-${target.id}`;
-
-  const list = warnings[key];
-
-  if (!list || list.length === 0) {
-    return interaction.reply({
-      content: "✅ هذا العضو لا يملك تحذيرات.",
-      ephemeral: true
-    });
-  }
-
-  const removed = list.pop();
-
-  saveWarnings();
-
-  return interaction.reply({
-    content:
-      `✅ تمت إزالة آخر تحذير عن <@${target.id}>.\n` +
-      `📝 السبب: **${removed.reason}**\n` +
-      `📊 المتبقي: **${list.length}**`
-  });
-}
     const key =
       `${interaction.guild.id}-${target.id}`;
 
-    const list = warnings.get(key);
+    const list = warnings[key];
 
     if (!list || list.length === 0) {
       return interaction.reply({
-        content: "✅ هذا العضو لا يملك تحذيرات.",
+        content:
+          `✅ <@${target.id}> لا يملك أي تحذيرات.`,
         ephemeral: true
       });
     }
 
     const removed = list.pop();
 
+    saveWarnings();
+
     return interaction.reply({
       content:
-        `✅ تمت إزالة آخر تحذير عن <@${target.id}>.\n` +
+        `✅ تم إزالة آخر تحذير عن <@${target.id}>.\n` +
         `📝 السبب: **${removed.reason}**\n` +
-        `📊 المتبقي: **${list.length}**`
+        `📊 التحذيرات المتبقية: **${list.length}**`
     });
   }
+
+  // ==================== WARNINGS ====================
 
   if (interaction.commandName === "warnings") {
-  const key = `${interaction.guild.id}-${target.id}`;
-
-  const list = warnings[key];
-
-  if (!list || list.length === 0) {
-    return interaction.reply({
-      content:
-        `📋 <@${target.id}> لا يملك أي تحذيرات.`,
-      ephemeral: true
-    });
-  }
-
-  const embed = new EmbedBuilder()
-    .setTitle("⚠️ تحذيرات العضو")
-    .setDescription(
-      `<@${target.id}>\nعدد التحذيرات: **${list.length}**`
-    )
-    .setTimestamp();
-
-  list.forEach((warning, index) => {
-    embed.addFields({
-      name: `تحذير #${index + 1}`,
-      value:
-        `📝 السبب: ${warning.reason}\n` +
-        `👮 المشرف: <@${warning.moderator}>\n` +
-        `📅 <t:${Math.floor(
-          new Date(warning.date).getTime() / 1000
-        )}:F>`
-    });
-  });
-
-  return interaction.reply({
-    embeds: [embed],
-    ephemeral: true
-  });
-  }
     const key =
       `${interaction.guild.id}-${target.id}`;
 
-    const list = warnings.get(key);
+    const list = warnings[key];
 
     if (!list || list.length === 0) {
       return interaction.reply({
@@ -379,7 +370,8 @@ client.on("interactionCreate", async interaction => {
     const embed = new EmbedBuilder()
       .setTitle("⚠️ تحذيرات العضو")
       .setDescription(
-        `<@${target.id}>\nعدد التحذيرات: **${list.length}**`
+        `العضو: <@${target.id}>\n` +
+        `عدد التحذيرات: **${list.length}**`
       )
       .setTimestamp();
 
@@ -389,8 +381,8 @@ client.on("interactionCreate", async interaction => {
         value:
           `📝 السبب: ${warning.reason}\n` +
           `👮 المشرف: <@${warning.moderator}>\n` +
-          `📅 <t:${Math.floor(
-            warning.date.getTime() / 1000
+          `📅 التاريخ: <t:${Math.floor(
+            new Date(warning.date).getTime() / 1000
           )}:F>`
       });
     });
