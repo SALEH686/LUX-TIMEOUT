@@ -25,7 +25,27 @@ if (!CLIENT_ID) {
   process.exit(1);
 }
 
-const warnings = new Map();
+const fs = require("fs");
+
+const warningsFile = "./warnings.json";
+
+let warnings = {};
+
+if (fs.existsSync(warningsFile)) {
+  try {
+    warnings = JSON.parse(fs.readFileSync(warningsFile, "utf8"));
+  } catch (error) {
+    console.error("❌ Failed to read warnings.json:", error);
+    warnings = {};
+  }
+}
+
+function saveWarnings() {
+  fs.writeFileSync(
+    warningsFile,
+    JSON.stringify(warnings, null, 2)
+  );
+}
 
 const timeoutCommand = new SlashCommandBuilder()
   .setName("timeout")
@@ -212,6 +232,29 @@ client.on("interactionCreate", async interaction => {
   }
 
   if (interaction.commandName === "warn") {
+  const reason = interaction.options.getString("reason");
+
+  const key = `${interaction.guild.id}-${target.id}`;
+
+  if (!warnings[key]) {
+    warnings[key] = [];
+  }
+
+  warnings[key].push({
+    reason: reason,
+    moderator: interaction.user.id,
+    date: new Date().toISOString()
+  });
+
+  saveWarnings();
+
+  return interaction.reply({
+    content:
+      `⚠️ تم تحذير <@${target.id}>.\n` +
+      `📝 السبب: **${reason}**\n` +
+      `📊 عدد التحذيرات: **${warnings[key].length}**`
+  });
+  }
     const reason =
       interaction.options.getString("reason");
 
@@ -239,6 +282,28 @@ client.on("interactionCreate", async interaction => {
   }
 
   if (interaction.commandName === "unwarn") {
+  const key = `${interaction.guild.id}-${target.id}`;
+
+  const list = warnings[key];
+
+  if (!list || list.length === 0) {
+    return interaction.reply({
+      content: "✅ هذا العضو لا يملك تحذيرات.",
+      ephemeral: true
+    });
+  }
+
+  const removed = list.pop();
+
+  saveWarnings();
+
+  return interaction.reply({
+    content:
+      `✅ تمت إزالة آخر تحذير عن <@${target.id}>.\n` +
+      `📝 السبب: **${removed.reason}**\n` +
+      `📊 المتبقي: **${list.length}**`
+  });
+}
     const key =
       `${interaction.guild.id}-${target.id}`;
 
@@ -262,6 +327,42 @@ client.on("interactionCreate", async interaction => {
   }
 
   if (interaction.commandName === "warnings") {
+  const key = `${interaction.guild.id}-${target.id}`;
+
+  const list = warnings[key];
+
+  if (!list || list.length === 0) {
+    return interaction.reply({
+      content:
+        `📋 <@${target.id}> لا يملك أي تحذيرات.`,
+      ephemeral: true
+    });
+  }
+
+  const embed = new EmbedBuilder()
+    .setTitle("⚠️ تحذيرات العضو")
+    .setDescription(
+      `<@${target.id}>\nعدد التحذيرات: **${list.length}**`
+    )
+    .setTimestamp();
+
+  list.forEach((warning, index) => {
+    embed.addFields({
+      name: `تحذير #${index + 1}`,
+      value:
+        `📝 السبب: ${warning.reason}\n` +
+        `👮 المشرف: <@${warning.moderator}>\n` +
+        `📅 <t:${Math.floor(
+          new Date(warning.date).getTime() / 1000
+        )}:F>`
+    });
+  });
+
+  return interaction.reply({
+    embeds: [embed],
+    ephemeral: true
+  });
+  }
     const key =
       `${interaction.guild.id}-${target.id}`;
 
